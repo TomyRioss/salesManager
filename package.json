@@ -5,8 +5,8 @@
   "packageManager": "npm@10.9.2",
   "scripts": {
     "preinstall": "node -e \"if(!/^npm/.test(process.env.npm_config_user_agent))throw new Error('Use npm')\"",
-    "dev": "npx prisma generate && next dev",
-    "build": "next build",
+    "dev": "next dev",
+    "build": "npx prisma generate && next build",
     "start": "next start",
     "lint": "eslint"
   },
