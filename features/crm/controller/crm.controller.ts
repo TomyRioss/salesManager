@@ -1,6 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
+import type { Pipeline } from '@prisma/client'
 import type { PipelineWithStages } from '../model/types'
 
 export async function getPipelines(userId?: string, teamId?: string): Promise<Pipeline[]> {
@@ -141,8 +142,6 @@ export async function moveCard(cardId: string, toStageId: string, changedById: s
     }),
   ])
 }
-
-import type { Pipeline } from '@prisma/client'
 
 export async function renamePipeline(pipelineId: string, name: string) {
   return prisma.pipeline.update({
