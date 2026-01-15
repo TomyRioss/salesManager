@@ -6,8 +6,8 @@ import { Input } from '@/components/ui/input'
 import { FiX, FiChevronDown, FiChevronUp } from 'react-icons/fi'
 
 export interface AddCardData {
-  name?: string
-  surname?: string
+  name: string
+  surname: string
   phone?: string
   email?: string
   company?: string
@@ -78,8 +78,8 @@ export function AddCardModal({ isOpen, onClose, onSubmit }: AddCardModalProps) {
     e.preventDefault()
     setLoading(true)
     await onSubmit({
-      name: name || undefined,
-      surname: surname || undefined,
+      name,
+      surname,
       phone: phone || undefined,
       email: email || undefined,
       company: company || undefined,

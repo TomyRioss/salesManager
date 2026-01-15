@@ -20,7 +20,7 @@ export async function register(formData: FormData): Promise<AuthResult> {
 
   const parsed = registerSchema.safeParse(data)
   if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0].message }
+    return { success: false, error: parsed.error.issues[0].message }
   }
 
   if (data.code !== REGISTER_CODE) {
@@ -72,7 +72,7 @@ export async function login(formData: FormData): Promise<AuthResult> {
 
   const parsed = loginSchema.safeParse(data)
   if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0].message }
+    return { success: false, error: parsed.error.issues[0].message }
   }
 
   const user = await prisma.user.findUnique({
