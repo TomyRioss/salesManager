@@ -1,0 +1,611 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+// ============================================
+// ENUMS
+// ============================================
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+enum TeamRole {
+  GUEST
+  MEMBER
+  ADMIN
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum ContactStatus {
+  ACTIVE
+  INACTIVE
+  BLOCKED
+}
+
+enum BusinessSize {
+  SMALL
+  MEDIUM
+  LARGE
+  ENTERPRISE
+}
+
+enum ActionType {
+  CONTACT_ADDED
+  CONTACT_REMOVED
+  STAGE_CHANGED
+  NOTE_ADDED
+  CONTACT_CALLED
+  CONTACT_UPDATED
+  TASK_COMPLETED
+  TASK_CREATED
+}
+
+// ============================================
+// USUARIOS Y EQUIPOS
+// ============================================
+
+model User {
+  id             String    @id @default(uuid())
+  email          String    @unique
+  name           String
+  surname        String
+  passwordHash   String
+  role           UserRole  @default(USER)
+  avatarUrl      String?
+  phone          String?
+  secondaryPhone String?
+  address        String?
+  city           String?
+  country        String?
+  timezone       String?
+  language       String?
+  position       String?
+  department     String?
+  birthDate      DateTime?
+  hireDate       DateTime?
+  isActive       Boolean   @default(true)
+  lastLoginAt    DateTime?
+  version        Int       @default(1)
+  metadata       Json?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  // Relaciones
+  teamMemberships   TeamMember[]
+  contactsCreated   Contact[]        @relation("ContactCreatedBy")
+  contactsOwned     Contact[]        @relation("ContactOwner")
+  pipelinesCreated  Pipeline[]       @relation("PipelineCreatedBy")
+  pipelinesOwned    Pipeline[]       @relation("PipelineOwner")
+  cardsAssigned     PipelineCard[]   @relation("CardAssignedTo")
+  tasksCreated      Task[]           @relation("TaskCreatedBy")
+  tasksAssigned     Task[]           @relation("TaskAssignedTo")
+  taskListsCreated  TaskList[]       @relation("TaskListCreatedBy")
+  taskListsOwned    TaskList[]       @relation("TaskListOwner")
+  leadFilesCreated  LeadFile[]       @relation("LeadFileCreatedBy")
+  leadFilesOwned    LeadFile[]       @relation("LeadFileOwner")
+  businessesCreated Business[]       @relation("BusinessCreatedBy")
+  businessesOwned   Business[]       @relation("BusinessOwner")
+  foldersCreated    ContactFolder[]  @relation("ContactFolderCreatedBy")
+  foldersOwned      ContactFolder[]  @relation("ContactFolderOwner")
+  leadFoldersOwned  LeadFileFolder[] @relation("LeadFileFolderOwner")
+  activityLogs      UserActivityLog[]
+  auditLogs         AuditLog[]
+
+  @@index([email])
+  @@index([isActive])
+}
+
+model Team {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relaciones
+  members         TeamMember[]
+  contacts        Contact[]
+  pipelines       Pipeline[]
+  taskLists       TaskList[]
+  leadFiles       LeadFile[]
+  businesses      Business[]
+  contactFolders  ContactFolder[]
+  leadFileFolders LeadFileFolder[]
+
+  @@index([isActive])
+}
+
+model TeamMember {
+  id       String   @id @default(uuid())
+  teamId   String
+  userId   String
+  role     TeamRole @default(MEMBER)
+  joinedAt DateTime @default(now())
+  isActive Boolean  @default(true)
+
+  team Team @relation(fields: [teamId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([teamId, userId])
+  @@index([teamId])
+  @@index([userId])
+}
+
+// ============================================
+// NEGOCIOS
+// ============================================
+
+model Business {
+  id            String        @id @default(uuid())
+  name          String
+  industry      String?
+  website       String?
+  email         String?
+  phone         String?
+  address       String?
+  city          String?
+  country       String?
+  postalCode    String?
+  description   String?
+  size          BusinessSize?
+  annualRevenue Decimal?
+  employeeCount Int?
+  socialMedia   Json?
+  isActive      Boolean       @default(true)
+  version       Int           @default(1)
+  metadata      Json?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  // Ownership
+  userId      String?
+  teamId      String?
+  createdById String
+
+  user      User? @relation("BusinessOwner", fields: [userId], references: [id])
+  team      Team? @relation(fields: [teamId], references: [id])
+  createdBy User  @relation("BusinessCreatedBy", fields: [createdById], references: [id])
+
+  // Relaciones
+  contacts ContactBusiness[]
+
+  @@index([userId])
+  @@index([teamId])
+  @@index([isActive])
+}
+
+// ============================================
+// CONTACTOS
+// ============================================
+
+model Contact {
+  id                String        @id @default(uuid())
+  name              String
+  surname           String
+  email             String?
+  emailSecondary    String?
+  phone             String?
+  phoneSecondary    String?
+  urls              String[]
+  notes             String?
+  position          String?
+  address           String?
+  city              String?
+  country           String?
+  postalCode        String?
+  birthDate         DateTime?
+  gender            String?
+  preferredLanguage String?
+  timezone          String?
+  socialMedia       Json?
+  sourceOrigin      String?
+  tags              String[]
+  contactPreference String?
+  avatarUrl         String?
+  status            ContactStatus @default(ACTIVE)
+  isActive          Boolean       @default(true)
+  version           Int           @default(1)
+  metadata          Json?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  // Ownership
+  userId      String?
+  teamId      String?
+  createdById String
+
+  user      User? @relation("ContactOwner", fields: [userId], references: [id])
+  team      Team? @relation(fields: [teamId], references: [id])
+  createdBy User  @relation("ContactCreatedBy", fields: [createdById], references: [id])
+
+  // Relaciones
+  businesses    ContactBusiness[]
+  folders       ContactFolderItem[]
+  pipelineCards PipelineCard[]
+  tasks         Task[]
+
+  @@index([userId])
+  @@index([teamId])
+  @@index([email])
+  @@index([isActive])
+}
+
+model ContactBusiness {
+  id         String   @id @default(uuid())
+  contactId  String
+  businessId String
+  position   String?
+  isPrimary  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  contact  Contact  @relation(fields: [contactId], references: [id])
+  business Business @relation(fields: [businessId], references: [id])
+
+  @@unique([contactId, businessId])
+  @@index([contactId])
+  @@index([businessId])
+}
+
+// ============================================
+// CARPETAS CONTACTOS
+// ============================================
+
+model ContactFolder {
+  id        String   @id @default(uuid())
+  name      String
+  parentId  String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Ownership
+  userId      String?
+  teamId      String?
+  createdById String
+
+  parent    ContactFolder?  @relation("FolderHierarchy", fields: [parentId], references: [id])
+  children  ContactFolder[] @relation("FolderHierarchy")
+  user      User?           @relation("ContactFolderOwner", fields: [userId], references: [id])
+  team      Team?           @relation(fields: [teamId], references: [id])
+  createdBy User            @relation("ContactFolderCreatedBy", fields: [createdById], references: [id])
+
+  // Relaciones
+  contacts ContactFolderItem[]
+
+  @@index([userId])
+  @@index([teamId])
+  @@index([parentId])
+}
+
+model ContactFolderItem {
+  id        String   @id @default(uuid())
+  contactId String
+  folderId  String
+  createdAt DateTime @default(now())
+
+  contact Contact       @relation(fields: [contactId], references: [id])
+  folder  ContactFolder @relation(fields: [folderId], references: [id])
+
+  @@unique([contactId, folderId])
+  @@index([contactId])
+  @@index([folderId])
+}
+
+// ============================================
+// PIPELINES
+// ============================================
+
+model Pipeline {
+  id        String   @id @default(uuid())
+  name      String
+  date      DateTime @default(now())
+  isActive  Boolean  @default(true)
+  version   Int      @default(1)
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Ownership
+  userId      String?
+  teamId      String?
+  createdById String
+
+  user      User? @relation("PipelineOwner", fields: [userId], references: [id])
+  team      Team? @relation(fields: [teamId], references: [id])
+  createdBy User  @relation("PipelineCreatedBy", fields: [createdById], references: [id])
+
+  // Relaciones
+  stages       PipelineStage[]
+  cards        PipelineCard[]
+  tasks        Task[]
+  activityLogs UserActivityLog[]
+
+  @@index([userId])
+  @@index([teamId])
+  @@index([date])
+  @@index([isActive])
+}
+
+model PipelineStage {
+  id         String   @id @default(uuid())
+  pipelineId String
+  name       String
+  order      Int
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  pipeline Pipeline @relation(fields: [pipelineId], references: [id])
+
+  // Relaciones
+  cards     PipelineCard[]
+  cardsFrom PipelineCardHistory[] @relation("HistoryFromStage")
+  cardsTo   PipelineCardHistory[] @relation("HistoryToStage")
+
+  @@index([pipelineId])
+  @@index([order])
+}
+
+model PipelineCard {
+  id                    String    @id @default(uuid())
+  pipelineId            String
+  stageId               String
+  contactId             String
+  notes                 String?
+  lastContactAt         DateTime?
+  nextFollowUpAt        DateTime?
+  priority              Priority  @default(MEDIUM)
+  estimatedValue        Decimal?
+  closeProbability      Int?
+  source                String?
+  lastInteractionResult String?
+  tags                  String[]
+  customFields          Json?
+  isActive              Boolean   @default(true)
+  version               Int       @default(1)
+  metadata              Json?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  // Asignación
+  assignedToId String?
+
+  pipeline   Pipeline      @relation(fields: [pipelineId], references: [id])
+  stage      PipelineStage @relation(fields: [stageId], references: [id])
+  contact    Contact       @relation(fields: [contactId], references: [id])
+  assignedTo User?         @relation("CardAssignedTo", fields: [assignedToId], references: [id])
+
+  // Relaciones
+  history PipelineCardHistory[]
+
+  @@index([pipelineId])
+  @@index([stageId])
+  @@index([contactId])
+  @@index([assignedToId])
+  @@index([isActive])
+}
+
+model PipelineCardHistory {
+  id          String   @id @default(uuid())
+  cardId      String
+  fromStageId String?
+  toStageId   String
+  changedById String
+  changedAt   DateTime @default(now())
+
+  card      PipelineCard   @relation(fields: [cardId], references: [id])
+  fromStage PipelineStage? @relation("HistoryFromStage", fields: [fromStageId], references: [id])
+  toStage   PipelineStage  @relation("HistoryToStage", fields: [toStageId], references: [id])
+
+  @@index([cardId])
+  @@index([changedAt])
+}
+
+// ============================================
+// LEADS (CSV)
+// ============================================
+
+model LeadFile {
+  id        String   @id @default(uuid())
+  name      String
+  columns   String[]
+  isActive  Boolean  @default(true)
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Ownership
+  userId      String?
+  teamId      String?
+  createdById String
+
+  user      User? @relation("LeadFileOwner", fields: [userId], references: [id])
+  team      Team? @relation(fields: [teamId], references: [id])
+  createdBy User  @relation("LeadFileCreatedBy", fields: [createdById], references: [id])
+
+  // Relaciones
+  rows    LeadRow[]
+  folders LeadFileFolderItem[]
+
+  @@index([userId])
+  @@index([teamId])
+  @@index([isActive])
+}
+
+model LeadRow {
+  id         String   @id @default(uuid())
+  leadFileId String
+  data       Json
+  reached    Boolean  @default(false)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  leadFile LeadFile @relation(fields: [leadFileId], references: [id])
+
+  @@index([leadFileId])
+  @@index([reached])
+}
+
+// ============================================
+// CARPETAS LEADS
+// ============================================
+
+model LeadFileFolder {
+  id        String   @id @default(uuid())
+  name      String
+  parentId  String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Ownership
+  userId String?
+  teamId String?
+
+  parent   LeadFileFolder?  @relation("LeadFolderHierarchy", fields: [parentId], references: [id])
+  children LeadFileFolder[] @relation("LeadFolderHierarchy")
+  user     User?            @relation("LeadFileFolderOwner", fields: [userId], references: [id])
+  team     Team?            @relation(fields: [teamId], references: [id])
+
+  // Relaciones
+  leadFiles LeadFileFolderItem[]
+
+  @@index([userId])
+  @@index([teamId])
+  @@index([parentId])
+}
+
+model LeadFileFolderItem {
+  id         String   @id @default(uuid())
+  leadFileId String
+  folderId   String
+  createdAt  DateTime @default(now())
+
+  leadFile LeadFile       @relation(fields: [leadFileId], references: [id])
+  folder   LeadFileFolder @relation(fields: [folderId], references: [id])
+
+  @@unique([leadFileId, folderId])
+  @@index([leadFileId])
+  @@index([folderId])
+}
+
+// ============================================
+// TAREAS
+// ============================================
+
+model TaskList {
+  id        String   @id @default(uuid())
+  name      String
+  isActive  Boolean  @default(true)
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Ownership
+  userId      String?
+  teamId      String?
+  createdById String
+
+  user      User? @relation("TaskListOwner", fields: [userId], references: [id])
+  team      Team? @relation(fields: [teamId], references: [id])
+  createdBy User  @relation("TaskListCreatedBy", fields: [createdById], references: [id])
+
+  // Relaciones
+  tasks Task[]
+
+  @@index([userId])
+  @@index([teamId])
+  @@index([isActive])
+}
+
+model Task {
+  id          String    @id @default(uuid())
+  taskListId  String
+  title       String
+  description String?
+  dueDate     DateTime?
+  priority    Priority  @default(MEDIUM)
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+  isActive    Boolean   @default(true)
+  version     Int       @default(1)
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relaciones opcionales
+  contactId    String?
+  pipelineId   String?
+  assignedToId String?
+  createdById  String
+
+  taskList   TaskList  @relation(fields: [taskListId], references: [id])
+  contact    Contact?  @relation(fields: [contactId], references: [id])
+  pipeline   Pipeline? @relation(fields: [pipelineId], references: [id])
+  assignedTo User?     @relation("TaskAssignedTo", fields: [assignedToId], references: [id])
+  createdBy  User      @relation("TaskCreatedBy", fields: [createdById], references: [id])
+
+  @@index([taskListId])
+  @@index([contactId])
+  @@index([pipelineId])
+  @@index([assignedToId])
+  @@index([dueDate])
+  @@index([completed])
+  @@index([isActive])
+}
+
+// ============================================
+// AUDITORÍA E HISTORIAL
+// ============================================
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  entityType   String
+  entityId     String
+  action       String
+  previousData Json?
+  newData      Json?
+  userId       String
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model UserActivityLog {
+  id          String     @id @default(uuid())
+  userId      String
+  actionType  ActionType
+  description String
+  pipelineId  String?
+  cardId      String?
+  contactId   String?
+  fromStageId String?
+  toStageId   String?
+  metadata    Json?
+  createdAt   DateTime   @default(now())
+
+  user     User      @relation(fields: [userId], references: [id])
+  pipeline Pipeline? @relation(fields: [pipelineId], references: [id])
+
+  @@index([userId])
+  @@index([pipelineId])
+  @@index([actionType])
+  @@index([createdAt])
+}
